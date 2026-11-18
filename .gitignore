@@ -1,0 +1,10 @@
+.gradle/
+build/
+*.class
+*.jar
+!gradle-wrapper.jar
+src/main/resources/serviceAccountKey.json
+.env
+.idea/
+*.iml
+out/
