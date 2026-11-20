@@ -8,3 +8,4 @@ src/main/resources/serviceAccountKey.json
 .idea/
 *.iml
 out/
+*.md
