@@ -83,7 +83,10 @@ data class CitaAgenda(
     val horaFin: String,
     val mascota: String,
     val detalle: String,
-    val critico: Boolean
+    val critico: Boolean,
+    val fecha: String = "",
+    val tutor: String = "",
+    val estado: String = "Confirmada"
 )
 
 @Serializable

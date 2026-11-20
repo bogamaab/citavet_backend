@@ -34,26 +34,58 @@ private val especieTextos = mapOf(
 object AgendaService {
 
     fun getAgenda(medicoId: String, fechaParam: String?): AgendaResponse {
-        val fecha = if (!fechaParam.isNullOrBlank()) LocalDate.parse(fechaParam, dateFormatter)
-                    else findNextDayWithCitas(medicoId) ?: LocalDate.now()
-        val citas = CitaRepository.findByMedicoAndFecha(medicoId, fecha.format(dateFormatter))
-        val diaNombre = diasSemana[fecha.dayOfWeek.name] ?: fecha.dayOfWeek.name
-        val mes = mesesLargo[fecha.monthValue - 1]
-        val titulo = "$diaNombre, ${fecha.dayOfMonth} de $mes"
-        val citasAgenda = citas.sortedBy { it.hora }.map { cita ->
+        val hoy = LocalDate.now()
+        val hoyStr = hoy.format(dateFormatter)
+
+        val (fechaRef, citasFiltradas, titulo) = if (!fechaParam.isNullOrBlank() && fechaParam != "todas") {
+            val f = LocalDate.parse(fechaParam, dateFormatter)
+            val diaNombre = diasSemana[f.dayOfWeek.name] ?: f.dayOfWeek.name
+            val mes = mesesLargo[f.monthValue - 1]
+            val citasDia = CitaRepository.findByMedicoAndFecha(medicoId, fechaParam)
+            Triple(fechaParam, citasDia, "$diaNombre, ${f.dayOfMonth} de $mes")
+        } else {
+            val todas = CitaRepository.findByMedicoId(medicoId)
+                .filter { it.fecha >= hoyStr }
+                .sortedWith(compareBy({ it.fecha }, { it.hora }))
+            val total = todas.size
+            val tit = if (total == 0) "No tienes citas programadas"
+                      else "$total paciente(s) con cita programada"
+            Triple(hoyStr, todas, tit)
+        }
+
+        val citasAgenda = citasFiltradas.map { cita ->
             val mascota = MascotaRepository.findById(cita.mascotaId)
+            val tutor = if (mascota != null) UserRepository.findById(mascota.clienteId) else null
             val servicio = ServicioRepository.findById(cita.servicioId)
             val horaFin = LocalTime.parse(cita.hora, timeFormatter).plusMinutes(30).format(timeFormatter)
+
+            val fechaCita = LocalDate.parse(cita.fecha, dateFormatter)
+            val diff = ChronoUnit.DAYS.between(hoy, fechaCita)
+            val prefijoFecha = when {
+                diff == 0L -> "Hoy"
+                diff == 1L -> "Mañana"
+                else -> "${fechaCita.dayOfMonth} ${mesesCorto[fechaCita.monthValue - 1]}"
+            }
+
+            val detalleInfo = buildString {
+                append("$prefijoFecha • ${cita.hora}")
+                if (!mascota?.raza.isNullOrBlank()) append(" • ${mascota?.raza}")
+                if (!servicio?.nombre.isNullOrBlank()) append(" • ${servicio?.nombre}")
+            }
+
             CitaAgenda(
                 id = cita.id,
                 hora = cita.hora,
                 horaFin = horaFin,
-                mascota = mascota?.nombre ?: "",
-                detalle = "${mascota?.raza ?: ""} • ${servicio?.nombre ?: ""}",
-                critico = servicio?.critico ?: false
+                mascota = mascota?.nombre ?: "Paciente",
+                detalle = detalleInfo,
+                critico = servicio?.critico ?: false,
+                fecha = cita.fecha,
+                tutor = tutor?.nombre ?: "",
+                estado = cita.estado
             )
         }
-        return AgendaResponse(fecha = fecha.format(dateFormatter), titulo = titulo, citas = citasAgenda)
+        return AgendaResponse(fecha = fechaRef, titulo = titulo, citas = citasAgenda)
     }
 
     private fun findNextDayWithCitas(medicoId: String): LocalDate? {
