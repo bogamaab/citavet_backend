@@ -3,6 +3,7 @@ package com.cityvet.service
 import com.cityvet.models.*
 import com.cityvet.repository.CitaRepository
 import com.cityvet.repository.MascotaRepository
+import com.cityvet.repository.MedicoRepository
 import com.cityvet.repository.ServicioRepository
 import io.ktor.http.*
 import java.time.LocalDate
@@ -42,6 +43,13 @@ object CitaService {
         }
         val mascota = MascotaRepository.findById(request.mascotaId)
             ?: throw ApiException(HttpStatusCode.NotFound, "Mascota no encontrada")
+        val medico = MedicoRepository.findById(servicio.medicoId)
+        val doctorNombre = when {
+            medico != null && medico.nombre.isNotBlank() -> {
+                if (medico.nombre.startsWith("Dr.")) medico.nombre else "Dr. ${medico.nombre}"
+            }
+            else -> "Dr. Fernando Ruiz"
+        }
         val cita = Cita(
             mascotaId = request.mascotaId,
             servicioId = request.servicioId,
@@ -50,7 +58,7 @@ object CitaService {
             fecha = request.fecha,
             hora = request.hora,
             estado = "Confirmada",
-            doctor = "Dr. " + (servicio.medicoId.take(8))
+            doctor = doctorNombre
         )
         return CitaRepository.save(cita)
     }

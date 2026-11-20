@@ -3,6 +3,7 @@ package com.cityvet.routes
 import com.cityvet.config.AUTH_BEARER
 import com.cityvet.config.UserPrincipal
 import com.cityvet.config.requireRole
+import com.cityvet.repository.MedicoRepository
 import com.cityvet.service.AgendaService
 import com.cityvet.service.MascotaService
 import io.ktor.server.auth.*
@@ -15,7 +16,8 @@ fun Route.veterinarioRoutes() {
             val principal = call.principal<UserPrincipal>()!!
             call.authentication.requireRole("medico", "admin")
             val fecha = call.request.queryParameters["fecha"]
-            val agenda = AgendaService.getAgenda(principal.id, fecha)
+            val medicoId = resolveMedicoId(principal, call.request.queryParameters["medicoId"])
+            val agenda = AgendaService.getAgenda(medicoId, fecha)
             call.respond(agenda)
         }
         get("/pacientes") {
@@ -31,4 +33,12 @@ fun Route.veterinarioRoutes() {
             call.respond(ficha)
         }
     }
+}
+
+private fun resolveMedicoId(principal: UserPrincipal, queryMedicoId: String?): String {
+    if (!queryMedicoId.isNullOrBlank()) return queryMedicoId
+    if (principal.medicoId.isNotBlank()) return principal.medicoId
+    val porUsuarioId = MedicoRepository.findAll().find { it.usuarioId == principal.id }?.id
+    if (!porUsuarioId.isNullOrBlank()) return porUsuarioId
+    return MedicoRepository.findAll().firstOrNull()?.id ?: principal.id
 }

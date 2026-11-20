@@ -13,7 +13,8 @@ data class UserPrincipal(
     val id: String,
     val correo: String,
     val rol: String,
-    val nombre: String
+    val nombre: String,
+    val medicoId: String = ""
 )
 
 fun Application.configureAuth() {
@@ -27,7 +28,8 @@ fun Application.configureAuth() {
                         id = user.id,
                         correo = user.correo,
                         rol = user.rol,
-                        nombre = user.nombre
+                        nombre = user.nombre,
+                        medicoId = user.medicoId
                     )
                 } else null
             }
